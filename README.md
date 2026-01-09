@@ -1,4 +1,3 @@
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -261,9 +260,9 @@
 
                     <div class="grid grid-cols-1 gap-8">
                         <div class="dynamic-list-container p-6 rounded-r-2xl border-l-red-500/50">
-                            <h3 class="text-xs font-black text-red-400 mb-4 uppercase tracking-[0.3em]">Absence Log</h3>
+                            <h3 class="text-xs font-black text-red-400 mb-4 uppercase tracking-[0.3em]">Absences & Unplanned Leave (UPL)</h3>
                             <div id="absent_inputs" class="space-y-3 mb-4"></div>
-                            <button onclick="addInput('absent', 'text')" class="text-[10px] font-bold text-red-300/50 hover:text-red-400 transition-all uppercase tracking-widest">+ Add Absent</button>
+                            <button onclick="addInput('absent', 'text')" class="text-[10px] font-bold text-red-300/50 hover:text-red-400 transition-all uppercase tracking-widest">+ Add UPL</button>
                         </div>
 
                         <div class="dynamic-list-container p-6 rounded-r-2xl border-l-red-500/50">
@@ -303,6 +302,13 @@
                                     <button onclick="addInput('rescues', 'text-time')" class="text-[10px] font-bold text-purple-300/40 hover:text-purple-400 transition uppercase tracking-widest">+ Rescue</button>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- NEW: Planned Leave (PL) -->
+                        <div class="dynamic-list-container p-6 rounded-r-2xl border-l-gray-400/50">
+                            <h3 class="text-xs font-black text-gray-400 mb-4 uppercase tracking-[0.3em]">Planned Leave (PL)</h3>
+                            <div id="plannedLeave_inputs" class="space-y-3 mb-4"></div>
+                            <button onclick="addInput('plannedLeave', 'text')" class="text-[10px] font-bold text-gray-500/50 hover:text-gray-400 transition-all uppercase tracking-widest">+ Add PL</button>
                         </div>
                     </div>
                 </div>
@@ -387,16 +393,17 @@
             trainers: [],
             trainees: [],
             buffer: [],
-            absent: [],
+            absent: [], // UPL
             ncns: [],
             failedBAC: [],
             late: [], 
             earlyOut: [],
             roadEvents: [],
-            rescues: []
+            rescues: [],
+            plannedLeave: [] // PL
         };
 
-        const MAX_ENTRIES = 10;
+        const MAX_ENTRIES = 15;
 
         function toggleOtherLocation() {
             const locSelect = document.getElementById('location');
@@ -447,6 +454,7 @@
             const actualHC = parseInt(document.getElementById('actualHC').value) || 0;
             const headcountWarning = document.getElementById('headcountWarning');
 
+            // Total Attending Logic: All mission drivers, Depot, Trainers, Trainees, Buffer + (Late/Early)
             const presentCount = personnelData.missionMDC.length +
                                  personnelData.missionMapping.length +
                                  personnelData.missionABD.length +
@@ -456,18 +464,21 @@
                                  personnelData.trainees.length +
                                  personnelData.buffer.length;
 
-            const attendedWithExceptionCount = personnelData.late.length +
-                                               personnelData.earlyOut.length +
-                                               personnelData.roadEvents.length +
-                                               personnelData.rescues.length;
+            const workedWithLateEarlyCount = personnelData.late.length + personnelData.earlyOut.length;
             
-            const totalAttending = presentCount + attendedWithExceptionCount;
-            const hardAbsenceCount = personnelData.absent.length + personnelData.ncns.length + personnelData.failedBAC.length;
+            const totalAttending = presentCount + workedWithLateEarlyCount;
+
+            // Total Absence Logic: UPL, NCNS, Failed BAC, Road Events, Rescues
+            const hardAbsenceCount = personnelData.absent.length + 
+                                     personnelData.ncns.length + 
+                                     personnelData.failedBAC.length +
+                                     personnelData.roadEvents.length +
+                                     personnelData.rescues.length;
 
             const totalPersonnelAccountedFor = totalAttending + hardAbsenceCount;
             
             if (actualHC !== totalPersonnelAccountedFor && actualHC > 0) {
-                headcountWarning.textContent = `CRITICAL ALERT: MANUAL HEADCOUNT (${actualHC}) MISMATCH WITH SYSTEM ROSTER (${totalPersonnelAccountedFor}).`;
+                headcountWarning.textContent = `CRITICAL ALERT: MANUAL HEADCOUNT (${actualHC}) MISMATCH WITH SYSTEM ROSTER (${totalPersonnelAccountedFor}). (Excluding Planned Leave)`;
                 headcountWarning.classList.remove('hidden');
             } else {
                 headcountWarning.classList.add('hidden');
@@ -507,7 +518,10 @@
                 if (!isTextTime) {
                     const input = document.createElement('input');
                     input.type = 'text';
-                    input.placeholder = (section === 'roadEvents') ? 'Ticket ID' : 'Full Name';
+                    let placeholder = 'Full Name';
+                    if (section === 'roadEvents') placeholder = 'Ticket ID';
+                    
+                    input.placeholder = placeholder;
                     input.value = item || '';
                     input.className = 'flex-grow p-3 rounded-xl text-xs input-glow';
                     input.oninput = (e) => updatePersonnelData(section, index, 'text', e.target.value);
@@ -607,7 +621,7 @@ Buffer:${formatList('buffer', textFormatter)}
 
 ABSENCES AND EXCEPTIONS
 -----------------------------------
-Absent:${formatList('absent', textFormatter)}
+Absences & Unplanned Leave (UPL):${formatList('absent', textFormatter)}
 
 No Call No Show:${formatList('ncns', textFormatter)}
 
@@ -620,6 +634,8 @@ Early Out w/ Time of Departure:${formatList('earlyOut', nameTimeFormatter)}
 Road Events w/ Ticket ID:${formatList('roadEvents', textFormatter)}
 
 Rescues w/ Time of Return:${formatList('rescues', nameTimeFormatter)}
+
+Planned Leave (PL):${formatList('plannedLeave', textFormatter)}
 
 VEHICLE METRICS
 -----------------------------------
